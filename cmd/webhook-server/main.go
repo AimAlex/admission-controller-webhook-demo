@@ -25,6 +25,7 @@ import (
 	"log"
 	"net/http"
 	"path/filepath"
+	"strings"
 )
 
 const (
@@ -62,36 +63,62 @@ func applySecurityDefaults(req *v1beta1.AdmissionRequest) ([]patchOperation, err
 		return nil, fmt.Errorf("could not deserialize pod object: %v", err)
 	}
 
-	// Retrieve the `runAsNonRoot` and `runAsUser` values.
-	var runAsNonRoot *bool
-	var runAsUser *int64
-	if pod.Spec.SecurityContext != nil {
-		runAsNonRoot = pod.Spec.SecurityContext.RunAsNonRoot
-		runAsUser = pod.Spec.SecurityContext.RunAsUser
+	// check if pod is application
+	if pod.Annotations["aic.4paradigm.com/app"] != "true" {
+		return nil, nil
 	}
 
+	// get computeunitMap in annotation
+	var containerComputeunitMap = map[string]string{}
+	for k, v := range pod.Annotations {
+		if strings.HasPrefix(k, "aic.4paradigm.com/computeunit/") {
+			containerName := strings.TrimPrefix(k, "aic.4paradigm.com/computeunit/")
+			containerComputeunitMap[containerName] = v
+		}
+	}
 	// Create patch operations to apply sensible defaults, if those options are not set explicitly.
 	var patches []patchOperation
-	if runAsNonRoot == nil {
-		patches = append(patches, patchOperation{
-			Op:    "add",
-			Path:  "/spec/securityContext/runAsNonRoot",
-			// The value must not be true if runAsUser is set to 0, as otherwise we would create a conflicting
-			// configuration ourselves.
-			Value: runAsUser == nil || *runAsUser != 0,
-		})
-
-		if runAsUser == nil {
-			patches = append(patches, patchOperation{
-				Op:    "add",
-				Path:  "/spec/securityContext/runAsUser",
-				Value: 1234,
-			})
+	var computeunitList = []string{}
+	//var volumes = []interface{}{}
+	//var volumesExists = map[string]bool{}
+	for _, pod := range pod.Spec.Containers {
+		if computeunit, ok := containerComputeunitMap[pod.Name]; ok {
+			// TODO: get computeunit from billing server
+			computeunitList = append(computeunitList, computeunit)
+			// TODO: check volumes
+			// TODO: patch operation
+			delete(containerComputeunitMap, pod.Name)
 		}
-	} else if *runAsNonRoot == true && (runAsUser != nil && *runAsUser == 0) {
-		// Make sure that the settings are not contradictory, and fail the object creation if they are.
-		return nil, errors.New("runAsNonRoot specified, but runAsUser set to 0 (the root user)")
 	}
+
+	if len(containerComputeunitMap) != 0 {
+		return nil, errors.New("unexpected computeunit")
+	}
+	//if computeunit == "single-core" {
+	//	for item := range pod.Spec.Containers {
+	//		itemString := strconv.FormatInt(int64(item), 10)
+	//		resources := Resources{
+	//			Limits: map[string]string{"cpu": "1", "memory": "1Gi"},
+	//			Requests: map[string]string{"cpu": "1", "memory": "1Gi"}}
+	//		patches = append(patches, patchOperation{
+	//			Op: "add",
+	//			Path: "/spec/containers/" + itemString + "/resources",
+	//			Value: resources,
+	//		})
+			//patches = append(patches, patchOperation{
+			//	Op: "add",
+			//	Path: "/spec/containers/" + itemString + "/resources/limits/memory",
+			//	Value: "1Gi",
+			//})
+			//patches = append(patches, patchOperation{
+			//	Op: "add",
+			//	Path: "/spec/containers/" + itemString + "/resources/requests/cpu",
+			//	Value: "1",
+			//})
+			//patches = append(patches, patchOperation{
+			//	Op: "add",
+			//	Path: "/spec/containers/" + itemString + "/resources/requests/memory",
+			//	Value: "1Gi",
 
 	return patches, nil
 }
