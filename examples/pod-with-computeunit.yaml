@@ -7,6 +7,10 @@ metadata:
   name: pod-with-defaults
   labels:
     app: pod-with-defaults
+  annotations: {
+    aic.4paradigm.com/app: "true",
+    aic.4paradigm.com/computeunit.busybox: "single-core"
+  }
 spec:
   restartPolicy: OnFailure
   containers:

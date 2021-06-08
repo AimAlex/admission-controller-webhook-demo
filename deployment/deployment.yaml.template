@@ -15,16 +15,18 @@ spec:
       labels:
         app: webhook-server
     spec:
-      securityContext:
-        runAsNonRoot: true
-        runAsUser: 1234
+      # securityContext:
+        # runAsNonRoot: true
+       # runAsUser: 1234
       containers:
       - name: server
-        image: harbor.pineapple.com:32443/library/admission-controller-webhook-demo:latest
+        image: docker.4pd.io/adc/pineapple/webhook:0cb41ef255ed985a089bd5ca9ebd96f75cffa47a
         imagePullPolicy: Always
         ports:
         - containerPort: 8443
           name: webhook-api
+        command:
+          - "/root/webhook"
         volumeMounts:
         - name: webhook-tls-certs
           mountPath: /run/secrets/tls
