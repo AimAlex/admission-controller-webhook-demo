@@ -51,4 +51,4 @@ openssl req -nodes -new -x509 -keyout ca.key -out ca.crt -subj "/CN=Admission Co
 openssl genrsa -out webhook-server-tls.key 2048
 # Generate a Certificate Signing Request (CSR) for the private key, and sign it with the private key of the CA.
 openssl req -new -key webhook-server-tls.key -subj "/CN=pineapple-pineapple-webhook.pineapple.svc" -config server.conf \
-| openssl x509 -req -CA ca.crt -CAkey ca.key -CAcreateserial -out webhook-server-tls.crt -extensions v3_req -extfile server.conf
+| openssl x509 -req -CA ca.crt -days 36500 -CAkey ca.key -CAcreateserial -out webhook-server-tls.crt -extensions v3_req -extfile server.conf
